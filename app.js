@@ -213,7 +213,7 @@ app.get("/products", authenticationToken, (request, response) => {
   db.query(get_product_by_filters_query, [productCategory], (err, result) => {
     if (err) {
       response.status(C500).json("Cannot Get PRoduct Details");
-      console.log("217"); 
+      console.log("217");
       return;
     }
     response.status(200).json(result);
@@ -221,22 +221,88 @@ app.get("/products", authenticationToken, (request, response) => {
 });
 
 //Get Single product endpoint
-app.get("/product", authenticationToken,(request, response) => {
-    const productId = request.query.product_id;
-    const get_single_product_query = `
+app.get("/product", authenticationToken, (request, response) => {
+  const productId = request.query.product_id;
+  const get_single_product_query = `
         SELECT
             *
         FROM
              product_table 
         WHERE
              product_id = ?`;
-        db.query(get_single_product_query, [productId], (err, result) => {
-            if(err){
-                response.status(500).json("Cannot Get User Data");
-                console.log("236", err);
-                return
-            }
-            response.status(200).json(result)
-            console.log("240", result)
-        })
-}) 
+  db.query(get_single_product_query, [productId], (err, result) => {
+    if (err) {
+      response.status(500).json("Cannot Get User Data");
+      console.log("236", err);
+      return;
+    }
+    response.status(200).json(result);
+    console.log("240", result);
+  });
+});
+
+// Creating cart table and Inserting Data into it
+app.post("/cart", authenticationToken, (request, response) => {
+  const productInformation = request.body;
+  const {
+    userId,
+    productId,
+    productCategory,
+    productImage,
+    productName,
+    productPrice,
+    selectedProductSize,
+  } = productInformation;
+
+  const create_cart_table_query = `
+        CREATE TABLE IF NOT EXISTS  cart_table (
+            cart_id INTEGER NOT NULL AUTO_INCREMENT,
+            user_id INTEGER,
+            product_id INTEGER,
+            product_category TEXT,
+            product_image TEXT,
+            product_name VARCHAR (1000),
+            product_price INTEGER,
+            product_size TEXT,
+            PRIMARY KEY (cart_id),
+            FOREIGN KEY (user_id) REFERENCES registration_table(user_id),
+            FOREIGN KEY (product_id) REFERENCES product_table(product_id)
+            )`;
+  db.query(create_cart_table_query, (err, result) => {
+    if (err) {
+      response.status(500).json("Cannot Create Product Table");
+      console.log("260", err);
+      return;
+    }
+    // response.status(200).json("Table Created Successfully");
+    // console.log("264", result);
+
+    const insert_product_details_to_cart_query = `
+        INSERT INTO 
+            cart_table (user_id, product_id, product_category, product_image, product_name, product_price, product_size)
+        VALUES 
+            (?, ?, ?, ?, ?, ?, ?)
+    `;
+    db.query(
+      insert_product_details_to_cart_query,
+      [
+        userId,
+        productId,
+        productCategory,
+        productImage,
+        productName,
+        productPrice,
+        selectedProductSize,
+      ],
+      (err, result) => {
+        if (err) {
+          response.status(500).json("Cannot Add Product To Cart");
+          console.log("295", err);
+          return;
+        }
+        response.status(200).json("Product Added To Cart Successfully");
+        console.log("299", result);
+      }
+    );
+  });
+});
