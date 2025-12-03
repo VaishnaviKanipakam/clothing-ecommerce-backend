@@ -264,6 +264,7 @@ app.post("/cart", authenticationToken, (request, response) => {
             product_name VARCHAR (1000),
             product_price INTEGER,
             product_size TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (cart_id),
             FOREIGN KEY (user_id) REFERENCES registration_table(user_id),
             FOREIGN KEY (product_id) REFERENCES product_table(product_id)
@@ -304,5 +305,31 @@ app.post("/cart", authenticationToken, (request, response) => {
         console.log("299", result);
       }
     );
+  });
+});
+
+// Get all cart items belongs to user
+app.get("/cart_items", (request, response) => {
+  const userId = request.query.user_id;
+  const get_user_cart_items_query = `
+    SELECT
+      *
+    FROM
+      cart_table
+    WHERE
+      user_id = ?`;
+
+  db.query(get_user_cart_items_query, [userId], (err, result) => {
+    if (err) {
+      response.status(500).json("Cannot Get Cart Items");
+      console.log("324", err);
+      return;
+    }
+    if (result.length === 0) {
+      response.status(200).json({ message: "Cart is empty", cart_items: [] });
+    } else {
+      response.status(200).json(result);
+      console.log("328", result);
+    }
   });
 });
