@@ -242,11 +242,11 @@ app.get("/product", authenticationToken, (request, response) => {
 });
 
 // Creating cart table
-app.post("/cart_table", authenticationToken, (request, response) => {
+app.post("/create_cart_table", authenticationToken,(request, response) => {
   const create_cart_table_query = `
         CREATE TABLE IF NOT EXISTS  cart_table (
             cart_id INTEGER NOT NULL AUTO_INCREMENT,
-            user_id INTEGER,
+            user_id INTEGER NOT NULL,
             product_id INTEGER,
             product_category TEXT,
             product_image TEXT,
@@ -256,8 +256,8 @@ app.post("/cart_table", authenticationToken, (request, response) => {
             product_quantity INT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (cart_id),
-            FOREIGN KEY (user_id) REFERENCES registration_table(user_id),
-            FOREIGN KEY (product_id) REFERENCES product_table(product_id)
+            FOREIGN KEY (user_id) REFERENCES registration_table(user_id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES product_table(product_id) ON DELETE CASCADE
             )`;
   db.query(create_cart_table_query, (err, result) => {
     if (err) {
@@ -367,12 +367,12 @@ app.get("/cart_items", authenticationToken, (request, response) => {
       console.log("324", err);
       return;
     }
-    if (result.length === 0) {
-      response.status(200).json({ message: "Cart is empty", cart_items: [] });
-    } else {
+    // if (result.length === 0) {
+    //   response.status(200).json({ message: "Cart is empty", cart_items: [] });
+    // } else {
       response.status(200).json(result);
       console.log("328", result);
-    }
+    // }
   });
 });
 
@@ -448,7 +448,7 @@ app.post("/create_order_table", authenticationToken,(request, response) => {
   const create_order_table_query = `
     CREATE TABLE IF NOT EXISTS  order_table (
           order_id INTEGER NOT NULL AUTO_INCREMENT,
-          user_id INTEGER,
+          user_id INTEGER NOT NULL,
           cart_items_json JSON,
           total_price DECIMAL(10,2),
           name VARCHAR(100),
@@ -457,7 +457,7 @@ app.post("/create_order_table", authenticationToken,(request, response) => {
           order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           order_status VARCHAR(100),
           PRIMARY KEY (order_id),
-          FOREIGN KEY (user_id) REFERENCES registration_table(user_id)
+          FOREIGN KEY (user_id) REFERENCES registration_table(user_id) ON DELETE CASCADE
 )`
 
 db.query(create_order_table_query, (err, result) => {
@@ -470,21 +470,48 @@ db.query(create_order_table_query, (err, result) => {
 })
 });
 
-//Inser Order Details into order table
+//Insert Order Details into order table
 app.post("/order", authenticationToken,(request, response) => {
+  const userId = request.query.user_id
+  const orderDetails = request.body 
+  const {cartItems, totalPrice, name, phoneNumber, address} = orderDetails
+
   const insert_order_details = `
     INSERT INTO
-      order_table (user_id, cart_items_json, total_price, address, order_status)
+      order_table (user_id, cart_items_json, total_price, name, phone_number, address, order_status)
     VALUES (
-        ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?
     )
   `
-  db.query(insert_order_details, (err, result) => {
+  db.query(insert_order_details, [userId, JSON.stringify(cartItems), totalPrice, name, phoneNumber, address, "Order Delivered"], (err, result) => {
     if(err){
-      console.log("482", err)
-      return response.status(500).json("Cannot Insert Details")
+      console.log("488", err)
+      return response.status(500).json("Cannot Place Order")
     }
-    response.status(200).json("Data Inserted Successfully")
-    console.log("486", result)
+    response.status(200).json("Order Placed Successfully")
+    console.log("492", result)
+  })
+})
+
+
+//Get all orders belongs to user 
+app.get("/get_orders", (request, response) => {
+  const userId = request.query.user_id
+
+  const get_all_orders_query = `
+    SELECT
+      *
+    FROM
+      order_table
+    WHERE
+      user_id = ?
+  `
+  db.query(get_all_orders_query, [userId], (err, result) => {
+    if(err){
+      console.log("511", err)
+      return response.status(500).json("Cannot Get Order Details")
+    }
+    response.status(200).json(result)
+    console.log("515", result)
   })
 })
