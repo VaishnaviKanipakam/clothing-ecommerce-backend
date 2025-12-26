@@ -241,19 +241,8 @@ app.get("/product", authenticationToken, (request, response) => {
   });
 });
 
-// Creating cart table and Inserting Data into it
-app.post("/cart", authenticationToken, (request, response) => {
-  const productInformation = request.body;
-  const {
-    userId,
-    productId,
-    productCategory,
-    productImage,
-    productName,
-    productPrice,
-    selectedProductSize,
-  } = productInformation;
-
+// Creating cart table
+app.post("/cart_table", authenticationToken, (request, response) => {
   const create_cart_table_query = `
         CREATE TABLE IF NOT EXISTS  cart_table (
             cart_id INTEGER NOT NULL AUTO_INCREMENT,
@@ -264,6 +253,7 @@ app.post("/cart", authenticationToken, (request, response) => {
             product_name VARCHAR (1000),
             product_price INTEGER,
             product_size TEXT,
+            product_quantity INT DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (cart_id),
             FOREIGN KEY (user_id) REFERENCES registration_table(user_id),
@@ -275,41 +265,93 @@ app.post("/cart", authenticationToken, (request, response) => {
       console.log("260", err);
       return;
     }
-    // response.status(200).json("Table Created Successfully");
-    // console.log("264", result);
-
-    const insert_product_details_to_cart_query = `
-        INSERT INTO 
-            cart_table (user_id, product_id, product_category, product_image, product_name, product_price, product_size)
-        VALUES 
-            (?, ?, ?, ?, ?, ?, ?)
-    `;
-    db.query(
-      insert_product_details_to_cart_query,
-      [
-        userId,
-        productId,
-        productCategory,
-        productImage,
-        productName,
-        productPrice,
-        selectedProductSize,
-      ],
-      (err, result) => {
-        if (err) {
-          response.status(500).json("Cannot Add Product To Cart");
-          console.log("295", err);
-          return;
-        }
-        response.status(200).json("Product Added To Cart Successfully");
-        console.log("299", result);
-      }
-    );
+    response.status(200).json("Table Created Successfully");
+    console.log("264", result);
   });
 });
 
+// Inserting Data into Cart Table
+app.post("/cart", authenticationToken, (request, response) => {
+  const {
+    userId,
+    productId,
+    productCategory,
+    productImage,
+    productName,
+    productPrice,
+    selectedProductSize,
+  } = request.body;
+
+  const check_cart_item_present = `
+    SELECT *
+    FROM cart_table
+    WHERE user_id = ? AND product_id = ? AND product_size = ?
+  `;
+
+  db.query(
+    check_cart_item_present,
+    [userId, productId, selectedProductSize],
+    (err, rows) => {
+      if (err) {
+        console.log("DB ERROR:", err);
+        return response.status(500).json("Database Error");
+      }
+
+      // If item exists → update quantity and RETURN
+      if (rows.length > 0) {
+        const update_quantity = `
+          UPDATE cart_table
+          SET 
+            product_quantity = product_quantity + 1
+          WHERE 
+            user_id = ? 
+            AND product_id = ? 
+            AND product_size = ?
+        `;
+
+        return db.query(
+          update_quantity,
+          [userId, productId, selectedProductSize],
+          (err) => {
+            if (err) return response.status(500).json("Database error 2");
+            return response.json("Quantity Increased");
+          }
+        );
+      }
+
+      // Otherwise INSERT new item
+      const insert_query = `
+        INSERT INTO cart_table 
+        (user_id, product_id, product_category, product_image, product_name, product_price, product_size, product_quantity)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      `;
+
+      db.query(
+        insert_query,
+        [
+          userId,
+          productId,
+          productCategory,
+          productImage,
+          productName,
+          productPrice,
+          selectedProductSize,
+        ],
+        (err) => {
+          if (err) {
+            console.log("Insert Error:", err);
+            return response.status(500).json("Cannot Add Product To Cart");
+          }
+
+          return response.json("Product Added To Cart Successfully");
+        }
+      );
+    }
+  );
+});
+
 // Get all cart items belongs to user
-app.get("/cart_items", (request, response) => {
+app.get("/cart_items", authenticationToken, (request, response) => {
   const userId = request.query.user_id;
   const get_user_cart_items_query = `
     SELECT
@@ -333,3 +375,116 @@ app.get("/cart_items", (request, response) => {
     }
   });
 });
+
+//Update Cart Item beased on userId, productId, cartId
+app.put("/update_cart_item", authenticationToken, (request, response) => {
+  const { user_id, cart_id, product_id, product_category } = request.query;
+  const cartUpdateDetails = request.body;
+  const { productQuantityCount, productValue } = cartUpdateDetails;
+
+  const update_cart_item_query = `
+    UPDATE
+      cart_table
+    SET
+      product_quantity = ?
+    WHERE
+      user_id = ?
+      AND cart_id = ?
+      AND product_id = ?
+      AND product_category = ?
+
+  `;
+  db.query(
+    update_cart_item_query,
+    [
+      productQuantityCount,
+      Number(user_id),
+      Number(cart_id),
+      Number(product_id),
+      product_category,
+    ],
+    (err, result) => {
+      if (err) {
+        console.log("408", err);
+        return response.status(500).json("Cannot Upadate Cart Item");
+      }
+      response.status(200).json("Product Updated Successfully");
+      console.log("412", result);
+    }
+  );
+});
+
+
+//Delete Cart Item belongs to the login user 
+app.delete("/delete_cart_item", authenticationToken, (request, response) => {
+  const { user_id, cart_id, product_id, product_category } = request.query;
+  const delete_cart_item_query = `
+    DELETE FROM cart_table
+    WHERE
+      user_id = ?
+      AND cart_id = ?
+      AND product_id = ?
+      AND product_category = ?
+  `;
+
+  db.query(delete_cart_item_query, [
+      Number(user_id),
+      Number(cart_id),
+      Number(product_id),
+      product_category,
+    ], (err, result) => {
+      if(err){
+        console.log("436", err)
+        return response.status(500).json("Cannot Delete Cart Table");
+      }
+      response.status(200).json("Cart Item Deleted Successfully")
+      console.log("440", result)
+    })
+});
+
+
+//Create orders Table
+app.post("/create_order_table", authenticationToken,(request, response) => {
+  const create_order_table_query = `
+    CREATE TABLE IF NOT EXISTS  order_table (
+          order_id INTEGER NOT NULL AUTO_INCREMENT,
+          user_id INTEGER,
+          cart_items_json JSON,
+          total_price DECIMAL(10,2),
+          name VARCHAR(100),
+          phone_number TEXT,
+          address TEXT,
+          order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          order_status VARCHAR(100),
+          PRIMARY KEY (order_id),
+          FOREIGN KEY (user_id) REFERENCES registration_table(user_id)
+)`
+
+db.query(create_order_table_query, (err, result) => {
+  if(err){
+    console.log("465", err)
+    return response.status(500).json("Cannot Create Table")
+  }
+  response.status(200).json("Table Created Successfully")
+  console.log("469", result);
+})
+});
+
+//Inser Order Details into order table
+app.post("/order", authenticationToken,(request, response) => {
+  const insert_order_details = `
+    INSERT INTO
+      order_table (user_id, cart_items_json, total_price, address, order_status)
+    VALUES (
+        ?, ?, ?, ?, ?
+    )
+  `
+  db.query(insert_order_details, (err, result) => {
+    if(err){
+      console.log("482", err)
+      return response.status(500).json("Cannot Insert Details")
+    }
+    response.status(200).json("Data Inserted Successfully")
+    console.log("486", result)
+  })
+})
