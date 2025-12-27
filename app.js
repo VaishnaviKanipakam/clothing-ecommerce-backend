@@ -158,7 +158,7 @@ const authenticationToken = (request, response, next) => {
 };
 
 // Product Table Creation and Inserrindg Product Data
-app.post("/product_table", (request, response) => {
+app.post("/product_table", authenticationToken, (request, response) => {
   const products = require("./products");
   const values = products.map((p) => [
     p.product_name,
