@@ -158,7 +158,7 @@ const authenticationToken = (request, response, next) => {
 };
 
 // Product Table Creation and Inserrindg Product Data
-app.post("/product_table", (request, response) => {
+app.post("/product_table", authenticationToken, (request, response) => {
   const products = require("./products");
   const values = products.map((p) => [
     p.product_name,
@@ -217,7 +217,7 @@ app.get("/products", authenticationToken, (request, response) => {
 
   db.query(get_product_by_filters_query, [productCategory], (err, result) => {
     if (err) {
-      response.status(C500).json("Cannot Get PRoduct Details");
+      response.status(500).json("Cannot Get Product Details");
       return;
     }
     response.status(200).json(result);
@@ -243,7 +243,7 @@ app.get("/product", authenticationToken, (request, response) => {
   });
 });
 
-// Inserting Data into Cart Table
+// creating Cart table and Inserting Data into Cart Table
 app.post("/cart", authenticationToken, (request, response) => {
   const {
     userId,
@@ -444,7 +444,7 @@ app.delete("/delete_cart_item", authenticationToken, (request, response) => {
   );
 });
 
-//Insert Order Details into order table
+//Creating orders table and Insert Order Details into order table
 app.post("/order", authenticationToken, (request, response) => {
   const userId = request.query.user_id;
   const orderDetails = request.body;
@@ -499,7 +499,7 @@ app.post("/order", authenticationToken, (request, response) => {
 });
 
 //Get all orders belongs to user
-app.get("/get_orders", (request, response) => {
+app.get("/get_orders", authenticationToken,(request, response) => {
   const userId = request.query.user_id;
 
   const get_all_orders_query = `
