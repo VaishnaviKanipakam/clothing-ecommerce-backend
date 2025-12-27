@@ -12,7 +12,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://collaborative-task-manager-frontend-pearl.vercel.app"
+      "https://clothing-ecommerce-frontend-eight.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
